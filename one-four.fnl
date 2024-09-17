@@ -1,5 +1,6 @@
 (global stack [])
-(global words {})
+(global words {:square ["dup" "*"]})
+(local one4 {})
 
 (macro push [item]
   `(table.insert _G.stack ,item))
@@ -21,26 +22,22 @@
         arg2 (pop)]
     (push (f arg2 arg1))))
 
-;; math functions
-(fn add [x y]
-  (+ x y))
+(fn one4.handle-word [word]
+  (each [i w (ipairs (. words word))]
+    (one4.eval w)))
 
-(fn sub [x y]
-  (- x y))
-
-(fn handle-word [])
-
-(fn eval [w]
+(fn one4.eval [w]
   (case w
     (where num (tonumber num)) (push (tonumber num))
     "exit" (os.exit)
     ".s" (.. "[" (table.concat _G.stack " ") "]")
     "." (pop)
-    "+" (func-binary add)
-    "-" (func-binary sub)
+    "+" (func-binary #(+ $1 $2))
+    "-" (func-binary #(- $1 $2))
+    "*" (func-binary #(* $1 $2))
     "abs" (func-unary math.abs)
     "dup" (push (peek))
-    (where word (not (= nil (. _G.words word)))) (handle-word)
+    (where word (not (= nil (. _G.words word)))) (one4.handle-word word)
     _ w))
 
 (fn repl []
@@ -48,7 +45,7 @@
     (io.write "> ")
     (let [a (io.read "*l")]
       (each [w (string.gmatch a "%S+")]
-        (local res (eval w))
+        (local res (one4.eval w))
         (if res
             (print res))))))
 
