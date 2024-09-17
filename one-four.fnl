@@ -1,7 +1,7 @@
 (local inspect (require "inspect"))
 
 (global stack [])
-(global words {:square ["dup" "*"]})
+(global words {})
 (local one4 {})
 
 (macro push [item]
@@ -31,22 +31,28 @@
     _ (push word)))
 
 (fn one4.eval [w]
-  (case w
-    (where num (tonumber num)) (push (tonumber num))
-    "exit" (os.exit)
-    ".s" (inspect _G.stack)
-    "." (pop)
-    "+" (func-binary #(+ $1 $2))
-    "-" (func-binary #(- $1 $2))
-    "*" (func-binary #(* $1 $2))
-    "abs" (func-unary math.abs)
-    "=" (func-binary #(= $1 $2))
-    "dup" (push (peek))
-    "var" (tset words (pop) nil)
-    "!" (func-binary #(tset words $2 $1))
-    "?" (func-unary #(. words $1))
-    (where word (not (= nil (. words word)))) (one4.handle-word word) ; word is in store
-    _ (push w))) ; unknown word
+  (if (and (= one4.mode "compile") (not (= w ";")))
+      ; in compile mode - simply push words onto the store
+      ; the top of the stack is the word name already
+      (table.insert (. words (peek)) w)
+      (case w
+        (where num (tonumber num)) (push (tonumber num))
+        "exit" (os.exit)
+        ".s" (inspect _G.stack)
+        "." (pop)
+        "+" (func-binary #(+ $1 $2))
+        "-" (func-binary #(- $1 $2))
+        "*" (func-binary #(* $1 $2))
+        "abs" (func-unary math.abs)
+        "=" (func-binary #(= $1 $2))
+        "dup" (push (peek))
+        "var" (tset words (pop) nil)
+        "!" (func-binary #(tset words $2 $1))
+        "?" (func-unary #(. words $1))
+        ":" (do (tset one4 :mode "compile") (tset words (peek) []))
+        ";" (do (tset one4 :mode "eval") (.. (pop) " defined"))
+        (where word (not (= nil (. words word)))) (one4.handle-word word) ; word is in store
+        _ (push w)))) ; unknown word
 
 (fn repl []
   (while true
