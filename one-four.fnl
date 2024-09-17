@@ -1,3 +1,4 @@
+#!/usr/bin/env fennel
 (local inspect (require "inspect"))
 
 (global stack [])
@@ -63,4 +64,14 @@
         (if res
             (print res))))))
 
+(fn eval-file [filename]
+  (let [file (io.open filename "r")]
+    (each [l (io.lines filename)]
+      (each [w (string.gmatch l "%S+")]
+        (one4.eval w)))
+    (file:close)))
+
+(let [file (. arg 1)]
+  (if (not (= nil file))
+    (eval-file file)))
 (repl)

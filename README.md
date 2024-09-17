@@ -2,6 +2,19 @@
 
 A forth inspired language built on Fennel.
 
+## Prereq
+
+Fennel (and Lua, obviously).
+```
+luarocks install inspect
+```
+
+## Run
+
+```
+./one-four.fnl <filename>
+```
+
 ## Syntax
 
 We have 2 primary data stores:

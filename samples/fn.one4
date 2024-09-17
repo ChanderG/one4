@@ -1,0 +1,10 @@
+a var
+10 a !
+
+square : dup * ;
+cube : dup dup * * ;
+cube1 : dup square * ;
+
+a ? square
+a ? cube
+a ? cube1
