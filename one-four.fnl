@@ -33,9 +33,12 @@
 
 (fn one4.eval [w]
   (if (and (= one4.mode "compile") (not (= w ";")))
-      ; in compile mode - simply push words onto the store
-      ; the top of the stack is the word name already
-      (table.insert (. words (peek)) w)
+      (do 
+        ; in compile mode - simply push words onto the store
+        ; the top of the stack is the word name already
+        (table.insert (. words one4.curr) w)
+        ; now do some processing for if/else/then using the stack itself
+        )
       (case w
         (where num (tonumber num)) (push (tonumber num))
         "exit" (os.exit)
@@ -50,8 +53,8 @@
         "var" (tset words (pop) nil)
         "!" (func-binary #(tset words $2 $1))
         "?" (func-unary #(. words $1))
-        ":" (do (tset one4 :mode "compile") (tset words (peek) []))
-        ";" (do (tset one4 :mode "eval") (.. (pop) " defined"))
+        ":" (do (tset one4 :mode "compile") (tset one4 :curr (pop)) (tset words one4.curr []))
+        ";" (do (tset one4 :mode "eval") (.. one4.curr " defined"))
         (where word (not (= nil (. words word)))) (one4.handle-word word) ; word is in store
         _ (push w)))) ; unknown word
 
