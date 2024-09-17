@@ -1,3 +1,5 @@
+(local inspect (require "inspect"))
+
 (global stack [])
 (global words {:square ["dup" "*"]})
 (local one4 {})
@@ -23,22 +25,28 @@
     (push (f arg2 arg1))))
 
 (fn one4.handle-word [word]
-  (each [i w (ipairs (. words word))]
-    (one4.eval w)))
+  (case (type (. words word))
+    "table" (each [i w (ipairs (. words word))]
+              (one4.eval w))
+    _ (push word)))
 
 (fn one4.eval [w]
   (case w
     (where num (tonumber num)) (push (tonumber num))
     "exit" (os.exit)
-    ".s" (.. "[" (table.concat _G.stack " ") "]")
+    ".s" (inspect _G.stack)
     "." (pop)
     "+" (func-binary #(+ $1 $2))
     "-" (func-binary #(- $1 $2))
     "*" (func-binary #(* $1 $2))
     "abs" (func-unary math.abs)
+    "=" (func-binary #(= $1 $2))
     "dup" (push (peek))
-    (where word (not (= nil (. _G.words word)))) (one4.handle-word word)
-    _ w))
+    "var" (tset words (pop) nil)
+    "!" (func-binary #(tset words $2 $1))
+    "?" (func-unary #(. words $1))
+    (where word (not (= nil (. words word)))) (one4.handle-word word) ; word is in store
+    _ (push w))) ; unknown word
 
 (fn repl []
   (while true
