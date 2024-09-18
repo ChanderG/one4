@@ -3,7 +3,7 @@
 
 (global stack [])
 (global words {})
-(local one4 {})
+(local one4 {:curr "" :offset 1})
 
 (macro push [item]
   `(table.insert _G.stack ,item))
@@ -27,17 +27,43 @@
 
 (fn one4.handle-word [word]
   (case (type (. words word))
-    "table" (each [i w (ipairs (. words word))]
-              (one4.eval w))
+    ;; compiled word
+    "table" (do
+              (local def (. words word))
+              (var ptr 1)
+              (while (<= ptr (length def))
+                (case (. def ptr) ;; special pos aware eval
+                  "cjmp" (let [off (pop)
+                               cond (pop)]
+                           (if (not cond)
+                               (set ptr (+ off ptr))
+                               (set ptr (+ 1 ptr))))
+                  _ (do ;; fallback to normal eval process
+                      (one4.eval (. def ptr))
+                      (set ptr (+ 1 ptr))))))
     _ (push word)))
 
 (fn one4.eval [w]
   (if (and (= one4.mode "compile") (not (= w ";")))
       (do 
         ; in compile mode - simply push words onto the store
-        ; the top of the stack is the word name already
         (table.insert (. words one4.curr) w)
+        ; update offset
+        (set one4.offset (+ 1 one4.offset))
         ; now do some processing for if/else/then using the stack itself
+        ; at compile time
+        (case w
+          "if" (do
+                 (one4.eval 0) ;; add dummy jump target
+                 (push one4.offset) ;; save the index of this word in this def onto stack
+                 (one4.eval "cjmp")) ;; add the cjmp instruction
+          "fi" (do
+                 (let [target (pop) ;; get the corresponding if condition loc
+                       off (- one4.offset target)] ;; calculate diff between fi and if
+                   (tset (. words one4.curr) target off) ;; save this value into the def
+                 ))
+          _ false
+          )
         )
       (case w
         (where num (tonumber num)) (push (tonumber num))
@@ -53,8 +79,13 @@
         "var" (tset words (pop) nil)
         "!" (func-binary #(tset words $2 $1))
         "?" (func-unary #(. words $1))
-        ":" (do (tset one4 :mode "compile") (tset one4 :curr (pop)) (tset words one4.curr []))
-        ";" (do (tset one4 :mode "eval") (.. one4.curr " defined"))
+        ":" (do (set one4.mode "compile") (set one4.curr (pop))
+                (set one4.offset 0) (tset words one4.curr []))
+        ";" (do (tset one4 :mode "eval") (.. one4.curr " defined")
+                (inspect (. words one4.curr)))
+        ;; do nothing at eval time
+        "if" false
+        "fi" false
         (where word (not (= nil (. words word)))) (one4.handle-word word) ; word is in store
         _ (push w)))) ; unknown word
 

@@ -1,0 +1,4 @@
+condAdd : dup 100 = if 50 + fi 50 + ;
+
+10 condAdd
+100 condAdd
