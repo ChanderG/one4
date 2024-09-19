@@ -3,7 +3,7 @@
 
 (global stack [])
 (global words {})
-(local one4 {:curr "" :offset 1})
+(local one4 {:mode "eval" :curr "" :offset 1})
 
 (macro push [item] `(table.insert _G.stack ,item))
 (macro pop [] `(table.remove _G.stack))
@@ -40,52 +40,56 @@
     _ (push word)))
 
 (fn one4.eval [w]
-  (if (= one4.mode "compile")
-      (do 
-        ; do some processing for if/else/then using the stack itself
-        ; at compile time
-        (case w
-          "if" (do
-                 (one4.eval 0) ;; add dummy jump target to def
-                 (push one4.offset) ;; save the index of this word in this def onto stack
-                 (one4.eval "cjmp")) ;; add the cjmp instruction
-          "else" (do
-                   (local target (pop)) ;; get the saved target, loc of if
-                   (one4.eval 0) ;; add dummy jump offset
-                   (push one4.offset) ;; save curr off to stack
-                   (one4.eval "jmp") ;; add the jmp word
-                   ;; adjust the jump target of if to the current offset
-                   (tset (. words one4.curr) target (- one4.offset target)))
-          "fi" (do
-                 (let [target (pop) ;; get the corresponding if/else condition loc
-                       off (- one4.offset target)] ;; calculate diff between fi and if
-                   (tset (. words one4.curr) target off))) ;; save this value into the def
-          ";" (do (tset one4 :mode "eval") (.. one4.curr " defined")
-                  (print (inspect (. words one4.curr))))
-          _ (do
-              (table.insert (. words one4.curr) w) ; add word as it is
-              (set one4.offset (+ 1 one4.offset)) ; update offset
-              )))
-      (case w
-        (where num (tonumber num)) (push (tonumber num))
-        "exit" (os.exit)
-        ".s" (inspect _G.stack)
-        "." (pop)
-        "+" (func-binary #(+ $1 $2))
-        "-" (func-binary #(- $1 $2))
-        "*" (func-binary #(* $1 $2))
-        "%" (func-binary #(% $1 $2))
-        "abs" (func-unary math.abs)
-        "=" (func-binary #(= $1 $2))
-        "dup" (push (peek))
-        "swap" (let [a (pop) b (pop)] (push a) (push b))
-        "var" (tset words (pop) nil)
-        "!" (func-binary #(tset words $2 $1))
-        "?" (func-unary #(. words $1))
-        ":" (do (set one4.mode "compile") (set one4.curr (pop))
-                (set one4.offset 0) (tset words one4.curr []))
-        (where word (not (= nil (. words word)))) (one4.handle-word word) ; word is in store
-        _ (push w)))) ; unknown word
+  (case one4.mode
+    "compile" (one4.eval-compile w)
+    "eval" (one4.eval-normal w)
+    _ false))
+
+(fn one4.eval-compile [w]
+  ; do some processing for if/else/then using the stack itself
+  (case w
+    "if" (do
+           (one4.eval 0) ;; add dummy jump target to def
+           (push one4.offset) ;; save the index of this word in this def onto stack
+           (one4.eval "cjmp")) ;; add the cjmp instruction
+    "else" (do
+             (local target (pop)) ;; get the saved target, loc of if
+             (one4.eval 0) ;; add dummy jump offset
+             (push one4.offset) ;; save curr off to stack
+             (one4.eval "jmp") ;; add the jmp word
+             ;; adjust the jump target of if to the current offset
+             (tset (. words one4.curr) target (- one4.offset target)))
+    "fi" (do
+           (let [target (pop) ;; get the corresponding if/else condition loc
+                 off (- one4.offset target)] ;; calculate diff between fi and if
+             (tset (. words one4.curr) target off))) ;; save this value into the def
+    ";" (do (tset one4 :mode "eval") (.. one4.curr " defined")
+            (print (inspect (. words one4.curr))))
+    _ (do
+        (table.insert (. words one4.curr) w) ; add word as it is
+        (set one4.offset (+ 1 one4.offset))))) ; update offset
+
+(fn one4.eval-normal [w]
+  (case w
+    (where num (tonumber num)) (push (tonumber num))
+    "exit" (os.exit)
+    ".s" (inspect _G.stack)
+    "." (pop)
+    "+" (func-binary #(+ $1 $2))
+    "-" (func-binary #(- $1 $2))
+    "*" (func-binary #(* $1 $2))
+    "%" (func-binary #(% $1 $2))
+    "abs" (func-unary math.abs)
+    "=" (func-binary #(= $1 $2))
+    "dup" (push (peek))
+    "swap" (let [a (pop) b (pop)] (push a) (push b))
+    "var" (tset words (pop) nil)
+    "!" (func-binary #(tset words $2 $1))
+    "?" (func-unary #(. words $1))
+    ":" (do (set one4.mode "compile") (set one4.curr (pop))
+            (set one4.offset 0) (tset words one4.curr []))
+    (where word (not (= nil (. words word)))) (one4.handle-word word) ; word is in store
+    _ (push w)))
 
 (fn repl []
   (while true
