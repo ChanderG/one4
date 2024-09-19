@@ -40,7 +40,7 @@
     _ (push word)))
 
 (fn one4.eval [w]
-  (if (and (= one4.mode "compile") (not (= w ";")))
+  (if (= one4.mode "compile")
       (do 
         ; do some processing for if/else/then using the stack itself
         ; at compile time
@@ -60,6 +60,8 @@
                  (let [target (pop) ;; get the corresponding if/else condition loc
                        off (- one4.offset target)] ;; calculate diff between fi and if
                    (tset (. words one4.curr) target off))) ;; save this value into the def
+          ";" (do (tset one4 :mode "eval") (.. one4.curr " defined")
+                  (print (inspect (. words one4.curr))))
           _ (do
               (table.insert (. words one4.curr) w) ; add word as it is
               (set one4.offset (+ 1 one4.offset)) ; update offset
@@ -82,8 +84,6 @@
         "?" (func-unary #(. words $1))
         ":" (do (set one4.mode "compile") (set one4.curr (pop))
                 (set one4.offset 0) (tset words one4.curr []))
-        ";" (do (tset one4 :mode "eval") (.. one4.curr " defined")
-                (print (inspect (. words one4.curr))))
         (where word (not (= nil (. words word)))) (one4.handle-word word) ; word is in store
         _ (push w)))) ; unknown word
 
@@ -105,5 +105,5 @@
 
 (let [file (. arg 1)]
   (if (not (= nil file))
-    (eval-file file)))
+      (eval-file file)))
 (repl)
