@@ -43,6 +43,7 @@
   (case one4.mode
     "compile" (one4.eval-compile w)
     "eval" (one4.eval-normal w)
+    "comment" (if (= w "*/") (set one4.mode (pop)))
     _ false))
 
 (fn one4.eval-compile [w]
@@ -65,6 +66,7 @@
              (tset (. words one4.curr) target off))) ;; save this value into the def
     ";" (do (tset one4 :mode "eval") (.. one4.curr " defined")
             (print (inspect (. words one4.curr))))
+    "/*" (do (push "compile") (set one4.mode "comment"))
     _ (do
         (table.insert (. words one4.curr) w) ; add word as it is
         (set one4.offset (+ 1 one4.offset))))) ; update offset
@@ -88,6 +90,7 @@
     "?" (func-unary #(. words $1))
     ":" (do (set one4.mode "compile") (set one4.curr (pop))
             (set one4.offset 0) (tset words one4.curr []))
+    "/*" (do (push "eval") (set one4.mode "comment"))
     (where word (not (= nil (. words word)))) (one4.handle-word word) ; word is in store
     _ (push w)))
 
