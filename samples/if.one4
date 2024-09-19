@@ -10,3 +10,11 @@ fbLike :
     fi
   fi
 ;
+
+even :
+  2 % 0 = if
+    EVEN
+  else
+    ODD
+  fi
+;

@@ -33,6 +33,7 @@
                            (if (not cond)
                                (set ptr (+ off ptr))
                                (set ptr (+ 1 ptr))))
+                  "jmp" (set ptr (+ (pop) ptr))
                   _ (do ;; fallback to normal eval process
                       (one4.eval (. def ptr))
                       (set ptr (+ 1 ptr))))))
@@ -41,22 +42,28 @@
 (fn one4.eval [w]
   (if (and (= one4.mode "compile") (not (= w ";")))
       (do 
-        ; in compile mode - simply push words onto the store
-        (table.insert (. words one4.curr) w)
-        (set one4.offset (+ 1 one4.offset)) ; update offset
-        ; now do some processing for if/else/then using the stack itself
+        ; do some processing for if/else/then using the stack itself
         ; at compile time
         (case w
           "if" (do
-                 (one4.eval 0) ;; add dummy jump target
+                 (one4.eval 0) ;; add dummy jump target to def
                  (push one4.offset) ;; save the index of this word in this def onto stack
                  (one4.eval "cjmp")) ;; add the cjmp instruction
+          "else" (do
+                   (local target (pop)) ;; get the saved target, loc of if
+                   (one4.eval 0) ;; add dummy jump offset
+                   (push one4.offset) ;; save curr off to stack
+                   (one4.eval "jmp") ;; add the jmp word
+                   ;; adjust the jump target of if to the current offset
+                   (tset (. words one4.curr) target (- one4.offset target)))
           "fi" (do
-                 (let [target (pop) ;; get the corresponding if condition loc
+                 (let [target (pop) ;; get the corresponding if/else condition loc
                        off (- one4.offset target)] ;; calculate diff between fi and if
-                   (tset (. words one4.curr) target off) ;; save this value into the def
-                 ))
-          _ false))
+                   (tset (. words one4.curr) target off))) ;; save this value into the def
+          _ (do
+              (table.insert (. words one4.curr) w) ; add word as it is
+              (set one4.offset (+ 1 one4.offset)) ; update offset
+              )))
       (case w
         (where num (tonumber num)) (push (tonumber num))
         "exit" (os.exit)
@@ -76,10 +83,7 @@
         ":" (do (set one4.mode "compile") (set one4.curr (pop))
                 (set one4.offset 0) (tset words one4.curr []))
         ";" (do (tset one4 :mode "eval") (.. one4.curr " defined")
-                (inspect (. words one4.curr)))
-        ;; do nothing at eval time
-        "if" false
-        "fi" false
+                (print (inspect (. words one4.curr))))
         (where word (not (= nil (. words word)))) (one4.handle-word word) ; word is in store
         _ (push w)))) ; unknown word
 
