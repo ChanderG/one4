@@ -5,14 +5,9 @@
 (global words {})
 (local one4 {:curr "" :offset 1})
 
-(macro push [item]
-  `(table.insert _G.stack ,item))
-
-(macro pop []
-  `(table.remove _G.stack))
-
-(macro peek []
-  `(. _G.stack (length _G.stack)))
+(macro push [item] `(table.insert _G.stack ,item))
+(macro pop [] `(table.remove _G.stack))
+(macro peek [] `(. _G.stack (length _G.stack)))
 
 ;; Helpers to wrap higher level functions into forth level
 ;; assume a single return value
@@ -48,8 +43,7 @@
       (do 
         ; in compile mode - simply push words onto the store
         (table.insert (. words one4.curr) w)
-        ; update offset
-        (set one4.offset (+ 1 one4.offset))
+        (set one4.offset (+ 1 one4.offset)) ; update offset
         ; now do some processing for if/else/then using the stack itself
         ; at compile time
         (case w
@@ -62,9 +56,7 @@
                        off (- one4.offset target)] ;; calculate diff between fi and if
                    (tset (. words one4.curr) target off) ;; save this value into the def
                  ))
-          _ false
-          )
-        )
+          _ false))
       (case w
         (where num (tonumber num)) (push (tonumber num))
         "exit" (os.exit)
